@@ -1,0 +1,26 @@
+{
+\def\sym#1{\ifmmode^{#1}\else\(^{#1}\)\fi}
+\begin{tabular}{l*{2}{c}}
+\hline\hline
+                                                  &\multicolumn{1}{c}{(1)}&\multicolumn{1}{c}{(2)}\\
+                                                  &\multicolumn{1}{c}{AFQT, age test <= 18}&\multicolumn{1}{c}{AFQT, age test > 18}\\
+\hline
+age\_test                                          &   0.0197         &-0.000506         \\
+                                                  & (0.0394)         & (0.0362)         \\
+[1em]
+black                                             &    0.186         &   -1.066         \\
+                                                  &  (0.976)         &  (1.079)         \\
+[1em]
+black\_age\_test                                    &  -0.0746         & -0.00803         \\
+                                                  & (0.0588)         & (0.0530)         \\
+[1em]
+Constant                                          &    0.104         &    0.460         \\
+                                                  &  (0.655)         &  (0.740)         \\
+\hline
+r2                                                &     0.27         &     0.35         \\
+N                                                 &      740         &      673         \\
+\hline\hline
+\multicolumn{3}{l}{\footnotesize Standard errors in parentheses}\\
+\multicolumn{3}{l}{\footnotesize \sym{*} \(p<0.1\), \sym{**} \(p<0.05\), \sym{***} \(p<0.01\)}\\
+\end{tabular}
+}

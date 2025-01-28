@@ -1,0 +1,1321 @@
+---
+title: "Data_Cleaning"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+
+library(haven)
+library(tidyr)
+library(dplyr)
+library(sandwich)
+library(ggpubr)
+library(gridExtra)
+library(grid)
+library(lmtest)
+
+
+rm(list=ls())
+# Set working directory
+raw_data <- "/Users/maksym/Documents/GitHub/black-white-age-wage-profiles/01_Data_&_Analysis/01_Data/01_raw/"
+clean_data <- "/Users/maksym/Documents/GitHub/black-white-age-wage-profiles/01_Data_&_Analysis/01_Data/02_clean/"
+figures <- "/Users/maksym/Documents/GitHub/black-white-age-wage-profiles/Figures/"
+tables <- "/Users/maksym/Documents/GitHub/black-white-age-wage-profiles/Tables/"
+#####################
+####### WAGES #######
+#####################
+
+Wages <- read.table(paste0(raw_data, 'Wages.dat'), sep=' ')
+names(Wages) <- c('R0000100',
+'R0047010',
+'R0173600',
+'R0214700',
+'R0214800',
+'R0263710',
+'R0446810',
+'R0702510',
+'R0945610',
+'R1256010',
+'R1650810',
+'R1923410',
+'R2318210',
+'R2526010',
+'R2925010',
+'R3127800',
+'R3523500',
+'R3728500',
+'R4416800',
+'R5079800',
+'R5165200',
+'R6478000',
+'R7005700',
+'R7702900',
+'R8495200',
+'T0986800',
+'T2209100',
+'T3106900',
+'T4110900',
+'T5019700',
+'T5768600',
+'T8215400',
+'T8785100')
+
+# Give names to variables
+qnames = function(data) {
+  names(data) <- c("id",
+                   "HRP_79",
+                   "sample_id",
+                   "race",
+                   "sex_79",
+                   "HRP_80",
+                   "HRP_81",
+                   "HRP_82",
+                   "HRP_83",
+                   "HRP_84",
+                   "HRP_85",
+                   "HRP_86",
+                   "HRP_87",
+                   "HRP_88",
+                   "HRP_89",
+                   "HRP_90",
+                   "HRP_91",
+                   "HRP_92",
+                   "HRP_93",
+                   "HRP_94",
+                   "HRP_96",
+                   "HRP_98",
+                   "HRP_100",
+                   "HRP_102",
+                   "HRP_104",
+                   "HRP_106",
+                   "HRP_108",
+                   "HRP_110",
+                   "HRP_112",
+                   "HRP_114",
+                   "HRP_116",
+                   "HRP_118",
+                   "HRP_120")
+  return(data)
+}
+
+Wages=qnames(Wages)
+
+columns_to_remove <- c("sex_79",
+                       "sample_id",
+                       "race")
+Wages <- Wages[, -which(names(Wages) %in% columns_to_remove)]
+
+# I want to make each wage in 1990 dollars to make it comparable to results found in Arcidiacono. 
+
+# Sample vector of CPI values
+denominators <- c(72.6, 82.4, 90.9, 96.5, 99.6, 103.9, 107.6, 109.6, 113.6, 118.3, 124.0, 130.7, 
+                  136.2, 140.3, 144.5, 148.2, 156.9, 163.0, 172.2, 179.9, 188.9, 201.6, 215.3, 218.1, 
+                  229.6, 236.7, 240.0, 251.1, 258.8)
+
+# Create the matrix
+matrix_values <- matrix(c(1, 130.7 / denominators), nrow = 1)
+
+# Identify non-negative entries in the dataset
+non_negative_entries <- Wages >= 0
+
+# Multiply only the non-negative entries by the corresponding matrix value
+Wages <- Wages
+Wages[non_negative_entries] <- Wages[non_negative_entries] * matrix_values[, col(Wages)][non_negative_entries]
+rm( matrix_values, denominators, non_negative_entries, columns_to_remove)
+```
+
+```{r Employment, echo=FALSE}
+
+
+######################
+## Employment CLass ##
+######################
+
+Employment_class <- read.table(paste0(raw_data, 'Employment_class.dat'), sep=' ')
+names(Employment_class) <- c('R0000100',
+                             'R0046800',
+                             'R0173600',
+                             'R0214700',
+                             'R0214800',
+                             'R0214900',
+                             'R0263500',
+                             'R0406300',
+                             'R0446600',
+                             'R0618800',
+                             'R0702300',
+                             'R0898500',
+                             'R0945400',
+                             'R1144700',
+                             'R1255800',
+                             'R1519900',
+                             'R1650600',
+                             'R1890600',
+                             'R1923200',
+                             'R2257700',
+                             'R2318000',
+                             'R2445100',
+                             'R2525800',
+                             'R2870600',
+                             'R2924800',
+                             'R3074300',
+                             'R3127500',
+                             'R3401000',
+                             'R3523200',
+                             'R3656400',
+                             'R3728200',
+                             'R4006900',
+                             'R4182300',
+                             'R4418000',
+                             'R4586700',
+                             'R4586800',
+                             'R4587900',
+                             'R5081000',
+                             'R5166300',
+                             'R5268800',
+                             'R5268900',
+                             'R5270400',
+                             'R5925000',
+                             'R5925800',
+                             'R5936600',
+                             'R6478900',
+                             'R6555000',
+                             'R6592300',
+                             'R7181300',
+                             'R7210100',
+                             'R7866700',
+                             'R7898500',
+                             'T0109200',
+                             'T0988100',
+                             'T1037500',
+                             'T1269800',
+                             'T1298500',
+                             'T2290400',
+                             'T3186500',
+                             'T3272200',
+                             'T3309200',
+                             'T4246600',
+                             'T4283300',
+                             'T5219600',
+                             'T5257400',
+                             'T7784800',
+                             'T7819100',
+                             'T8391900',
+                             'T8428800')
+
+
+qnames = function(data) {
+  names(data) <- c("id",
+                   "cls_79",
+                   "sample_id",
+                   "race",
+                   "sex_79",
+                   "ESR_79", 
+                   "cls_80",
+                   "ESR_80",
+                   "cls_81",
+                   "ESR_81",
+                   "cls_82",
+                   "ESR_82",
+                   "cls_83",
+                   "ESR_83",
+                   "cls_84",
+                   "ESR_84",
+                   "cls_85",
+                   "ESR_85",
+                   "cls_86",
+                   "ESR_86",
+                   "cls_87",
+                   "ESR_87",
+                   "cls_88",
+                   "ESR_88",
+                   "cls_89",
+                   "ESR_89",
+                   "cls_90",
+                   "ESR_90",
+                   "cls_91",
+                   "ESR_91",
+                   "cls_92",
+                   "ESR_92",
+                   "cls_93",
+                   "ESR_93",
+                   "clsa_94",
+                   "clsb_94",
+                   "clsc_94",
+                   "ESR_94",
+                   "ESR_96",
+                   "clsa_96",
+                   "clsb_96",
+                   "clsc_96",
+                   "clsa_98",
+                   "clsb_98",
+                   "clsc_98",
+                   "ESR_98",
+                   "ESR_100", # QES: currently employed?
+                   "cls_100", # COWALL: Class Of Worker ALL
+                   "ESR_102",
+                   "cls_102",
+                   "ESR_104",
+                   "cls_104",
+                   "ESR_106_F",
+                   "ESR_106",
+                   "cls_106",
+                   "ESR_108",
+                   "cls_108",
+                   "ESR_110",
+                   "cls_110",
+                   "ESR_112",
+                   "cls_112",
+                   "ESR_114",
+                   "cls_114",
+                   "ESR_116",
+                   "cls_116",
+                   "ESR_118",
+                   "cls_118",
+                   "ESR_120",
+                   "cls_120")
+  return(data)
+}
+
+Employment_class=qnames(Employment_class)
+
+columns_to_remove <- c("sex_79",
+                       "sample_id",
+                       "race","ESR_106_F")
+
+Employment_class <- Employment_class[, -which(names(Employment_class) %in% columns_to_remove)]
+
+demographics <- read_dta(paste0(raw_data, "demographics.dta"))
+data=merge(demographics,Employment_class, by="id")
+data=merge(data, Wages, by="id")
+data$brthyear=data$year
+
+rm(demographics)
+rm(Employment_class)
+```
+
+```{r Employment alternative, echo=FALSE}
+Employment <- read.table(paste0(raw_data, "employment_1_0.dat"), sep=" ")
+names(Employment) <- c('R0000100',
+'R0406511',
+'R0645680',
+'R0896711',
+'R1145111',
+'R1520311',
+'R1891011',
+'R2258111',
+'R2445511',
+'R2871301',
+'R3075001',
+'R3401701',
+'R3657101',
+'R4007601',
+'R4418701',
+'R5081701',
+'R5167001',
+'R6479801',
+'R7007501',
+'R7704801',
+'R8497201',
+'T0989001',
+'T2210801',
+'T3108701',
+'T4113201',
+'T5023700',
+'T5771600',
+'T8219500',
+'T8788700')
+
+qnames = function(data) {
+names(data) <- c("id",
+"emp_80",
+"emp_81",
+"emp_82",
+"emp_83",
+"emp_84",
+"emp_85",
+"emp_86",
+"emp_87",
+"emp_88",
+"emp_89",
+"emp_90",
+"emp_91",
+"emp_92",
+"emp_93",
+"emp_94",
+"emp_96",
+"emp_98",
+"emp_100",
+"emp_102",
+"emp_104",
+"emp_106",
+"emp_108",
+"emp_110",
+"emp_112",
+"emp_114",
+"emp_116",
+"emp_118",
+"emp_120")
+return(data)
+}
+Employment=qnames(Employment)
+data=merge(data,Employment, by="id")
+
+```
+
+```{r Geography, echo=FALSE}
+#####################
+##### Geography #####
+#####################
+
+Geography <- read.table(paste0(raw_data, "employment_1_0.datGeography.dat"), sep=' ')
+names(Geography) <- c('R0000100',
+                      'R0215100',
+                      'R0216400',
+                      'R0393510',
+                      'R0405700',
+                      'R0602810',
+                      'R0646900',
+                      'R0897800',
+                      'R0897910',
+                      'R1144800',
+                      'R1146500',
+                      'R1520000',
+                      'R1521600',
+                      'R1890700',
+                      'R1892300',
+                      'R2257800',
+                      'R2259400',
+                      'R2445200',
+                      'R2446900',
+                      'R2870800',
+                      'R2872700',
+                      'R3074500',
+                      'R3076400',
+                      'R3401200',
+                      'R3403100',
+                      'R3656600',
+                      'R3658500',
+                      'R4007100',
+                      'R4009000',
+                      'R4418200',
+                      'R4420100',
+                      'R5081200',
+                      'R5083100',
+                      'R5166500',
+                      'R5168400',
+                      'R6479100',
+                      'R6481200',
+                      'R7006800',
+                      'R7008900',
+                      'R7704100',
+                      'R7706200',
+                      'R8496500',
+                      'R8498600',
+                      'T0988300',
+                      'T0990400',
+                      'T2210300',
+                      'T2212200',
+                      'T3108200',
+                      'T3110100',
+                      'T4112700',
+                      'T4114600',
+                      'T5023100',
+                      'T5025900',
+                      'T5771000',
+                      'T5774000',
+                      'T8219100',
+                      'T8221200',
+                      'T8788300',
+                      'T8790400')
+
+qnames = function(data) {
+  names(data) <- c("id",
+                   "URBAN_79",
+                   "REGION_79",
+                   "URBAN_80",
+                   "REGION_80",
+                   "REGION_81",
+                   "URBAN_81",
+                   "URBAN_82",
+                   "REGION_82",
+                   "REGION_83",
+                   "URBAN_83",
+                   "REGION_84",
+                   "URBAN_84",
+                   "REGION_85",
+                   "URBAN_85",
+                   "REGION_86",
+                   "URBAN_86",
+                   "REGION_87",
+                   "URBAN_87",
+                   "REGION_88",
+                   "URBAN_88",
+                   "REGION_89",
+                   "URBAN_89",
+                   "REGION_90",
+                   "URBAN_90",
+                   "REGION_91",
+                   "URBAN_91",
+                   "REGION_92",
+                   "URBAN_92",
+                   "REGION_93",
+                   "URBAN_93",
+                   "REGION_94",
+                   "URBAN_94",
+                   "REGION_96",
+                   "URBAN_96",
+                   "REGION_98",
+                   "URBAN_98",
+                   "REGION_100",
+                   "URBAN_100",
+                   "REGION_102",
+                   "URBAN_102",
+                   "REGION_104",
+                   "URBAN_104",
+                   "REGION_106",
+                   "URBAN_106",
+                   "REGION_108",
+                   "URBAN_108",
+                   "REGION_110",
+                   "URBAN_110",
+                   "REGION_112",
+                   "URBAN_112",
+                   "REGION_114",
+                   "URBAN_114",
+                   "REGION_116",
+                   "URBAN_116",
+                   "REGION_118",
+                   "URBAN_118",
+                   "REGION_120",
+                   "URBAN_120")
+  return(data)
+}
+
+Geography=qnames(Geography)
+
+data=merge(data, Geography, by="id")
+rm(Geography)
+```
+
+```{r Education - just the grade reported in each year, echo=FALSE}
+
+Educ=read_dta(paste0(raw_data, "highest_grade.dta"))
+
+Educ <- Educ %>%
+  dplyr::select(starts_with("id"), starts_with("hgc"), starts_with("below6"))
+colnames(Educ) <- gsub("hgc", "hgc_", colnames(Educ))
+
+
+colnames(Educ) <- gsub("below6", "below6_", colnames(Educ))
+
+data=merge(data, Educ, by="id")
+rm(Educ)
+```
+
+```{r Reshape to id - year, echo=FALSE}
+data_long <- data %>%
+  pivot_longer(cols = starts_with(c("HRP_", "ESR_", "cls_","clsa_", "clsb_", "clsc_", "REGION_", "URBAN_", "hgc_","below6_","emp_")),
+               names_to = "variable",
+               values_to = "value")
+
+data_long <- data_long %>%
+  separate(variable, into = c("var", "year"), sep = "_", convert = TRUE)
+
+wide_df <- pivot_wider(data_long, names_from = var, values_from = value)
+
+## Replace cls by the value that either clsa, clsb or clsc takes as long as it is not a valid non response or a non interview
+wide_df <- wide_df %>%
+  mutate(
+    cls = ifelse(year > 93 & year < 100, 
+                 ifelse( clsa > -3, clsa,
+                        ifelse(clsb > -3, clsb,
+                               ifelse(clsc > -3, clsc, cls))),cls))
+# If it is a non-interview or a valid non-response, then just put clsa, otherwise keep it as it was. 
+wide_df <- wide_df %>%
+  mutate(cls = coalesce(cls, clsa))
+
+rm(data, data_long, qnames)
+```
+
+```{r Add age - skills - education - and graduation year, echo=FALSE}
+
+wide_df$age=wide_df$year-wide_df$brthyear
+
+# Upload Deming's data -> Room to improve the paper
+NLSY_merged=read_dta(paste0(raw_data, "nlsy_merged.dta"))
+
+filtered_data <- NLSY_merged %>%
+  filter(sample == 0)
+
+# Group by id and extract non-changing afqt score, noncog_std, and soc_nlsy2_std
+result <- filtered_data %>%
+  group_by(caseid) %>%
+  filter(n_distinct(afqt_std) == 1, n_distinct(noncog_std) == 1, n_distinct(soc_nlsy2_std) == 1) %>%
+  slice(1) 
+
+skills_id <- result%>% dplyr::select(c("caseid","race","soc_nlsy2_std","noncog_std","age_test","afqt_std","weight"))
+names(skills_id)[names(skills_id) == "caseid"] <- "id"
+
+wide_df=merge(wide_df,skills_id,by="id")
+
+#### Education ####
+
+# Get the highest level of education
+id_educ <- wide_df %>%
+  group_by(id) %>%
+  summarize(educ = max(hgc, na.rm = TRUE))
+
+wide_df=merge(wide_df, id_educ, by="id")
+
+educ_30=wide_df %>% subset(age<=30)%>%
+  group_by(id) %>%
+  arrange(desc(age)) %>%
+  slice(which.max(hgc>0))%>%dplyr::select(hgc)
+
+names(educ_30)[names(educ_30) == "hgc"] <- "educ_30"
+
+
+wide_df=merge(wide_df, educ_30, by="id")
+
+
+##### Graduation year #####
+
+graduation=read_dta(paste0(raw_data, "gradyear.dta"))
+
+graduation=dplyr::select(graduation, c("id", "gy"))
+
+wide_df=merge(wide_df,graduation, by="id")
+
+rm(educ_30, filtered_data, graduation, id_educ, NLSY_merged, result, skills_id)
+```
+
+```{r Add skills, echo=FALSE}
+
+# define non-interview
+wide_df$no_interview <- ifelse(wide_df$URBAN == -5, 1, 0) # can choose any variable, we care only about no interview. 
+
+# Handle missing values
+
+wide_df[wide_df == -1] = NA  # Refused
+wide_df[wide_df == -2] = NA  # Dont know
+wide_df[wide_df == -3] = NA  # Invalid missing
+wide_df[wide_df == -4] = NA  # Valid missing
+wide_df[wide_df == -5] = NA  # Non-interview
+
+# Define wages
+
+names(wide_df)[names(wide_df) == "HRP"] <- "wage"
+
+wide_df$wage=wide_df$wage/100 # Wages are in cents, so I am changing them to dollars
+
+wide_df$f_schl=ifelse(wide_df$educ-wide_df$educ_30==0,1,0)
+
+wide_df$wage_band=ifelse(wide_df$wage>1&wide_df$wage<100,1,0)
+
+wide_df$logwage=log(wide_df$wage)
+```
+
+
+```{r Subsamples}
+# Main sample from data already created
+
+NLSY79=subset(wide_df,female==0&race!=1&(wage>1&wage<100|is.na(wage)))
+
+# sample id codes, because I don't want to have the subsample of disadvantaged whites, neither the military sample. 
+
+NLSY00=read.csv(paste0(raw_data, "NLSY_sample_code.csv"))
+
+names(NLSY00)[names(NLSY00)=="R0000100"]="id"
+names(NLSY00)[names(NLSY00)=="R0173600"]="sample_id"
+
+myvars=c("id", "sample_id")
+NLSY00=NLSY00[myvars]
+
+NLSY79=merge(NLSY79, NLSY00, by="id") ##Years go from 1996 to 2012
+
+NLSY79$educ_cat=ifelse(NLSY79$educ<=11,1,0)
+NLSY79$educ_cat=ifelse(NLSY79$educ==12,2,NLSY79$educ_cat)
+NLSY79$educ_cat=ifelse(NLSY79$educ>=13&NLSY79$educ<=15,3,NLSY79$educ_cat)
+NLSY79$educ_cat=ifelse(NLSY79$educ==16,4,NLSY79$educ_cat)
+NLSY79$educ_cat=ifelse(NLSY79$educ>=17,5,NLSY79$educ_cat)
+NLSY79$educ_cat=as.factor(NLSY79$educ_cat)
+
+### For cute graphs ###
+NLSY79$val_label <- ifelse(NLSY79$educ_cat == 1, "High School -",
+                        ifelse(NLSY79$educ_cat == 2, "High School",
+                        ifelse(NLSY79$educ_cat == 3, "Some College",
+                        ifelse(NLSY79$educ_cat == 4, "College", "College +"))))                  
+NLSY79$val_label <- factor(NLSY79$val_label, levels = c("College +", "College", "Some College", "High School", "High School -"))
+
+write.table(NLSY79, file = paste0(clean_data, "NLSY79_bis.csv"), sep = ",", row.names = FALSE)
+
+```
+
+
+```{r Sample Selection - Neal}
+
+# Upload the data
+NLSY79=read.csv(paste0(clean_data, "NLSY79_bis.csv"))
+
+# Create dummies for different subsamples I want to use
+# Neal lite: 
+NLSY79$neal_lite <- ifelse(NLSY79$sample_id %in% c(9, 12, 15:20), 0, 1) # Remove poor whites and military sample 
+NLSY79$neal_lite <- ifelse(NLSY79$age_test <=18, NLSY79$neal_lite, 0) # Retain only those who took the test before 18
+
+# Prefered sample: Ordinary whites (Code 1 - 2236 obs)  and blacks (Code 3 - 346 obs), poor whites of the OG sample (Code 2 - 203 observations), and supplemental sample of blacks (Code 10 - 1105 observations (thank god since otherwise it would be a complicated analysis to do)
+
+# Resulting sample so far: 2439 observations for whites, 1451 blacks - 3890 ids in total
+NLSY79$sample_pref <- ifelse(NLSY79$sample_id %in% c(1:3,10), 1, 0) # Keep only black and white males, and the oversample of black males - Difference with Neal: No hispanic, and no female 
+df <- NLSY79 %>% filter(sample_pref == 1)
+length(unique(df$id)) # 3890 ids in total
+
+# Remove all those without afqt score
+NLSY79 <- NLSY79 %>%
+  filter(!is.na(afqt_std)) # from 155746 to 145481 observations
+NLSY79$ptexp=ifelse(NLSY79$year<30,100+NLSY79$year-NLSY79$gy,NLSY79$year-NLSY79$gy) # Potential experience measured as year - graduation year. Note that we don't use actual experience as it can be endogenous to labor market discrimination. 
+
+NLSY79=subset(NLSY79, ptexp<=40) # age for the youngest last observation, after 40 years of experience, it also behaves weirdly
+
+NLSY79 <- NLSY79 %>% mutate(old_test = ifelse(age_test>18, 1, 0))
+
+write_dta(NLSY79, paste0(clean_data,"NLSY79_stata.dta"))
+
+# Create a subsample for the plots
+dfm=NLSY79%>%subset(sample_pref==1&ptexp>=1)%>% # preferred sample, with age_test <=18 (subject to change) so that wee have their pre-market skills
+  group_by(ptexp, black, old_test)%>% # for each ptexp and black - non black srt of cells 
+  mutate(weighted_wage = weighted.mean(x=logwage, w=weight, na.rm = T), # obtain the average log-wage
+         share_no_interview = mean(no_interview, na.rm = TRUE)) # and the share of non-interviewed for attrition
+
+nrow(subset(dfm, race==3&ptexp==1)) # 845 high school graduates
+nrow(subset(dfm, race==2&ptexp==1))
+
+nrow(subset(dfm, race==3&ptexp==40)) # 845 high school graduates
+nrow(subset(dfm, race==2&ptexp==40))
+
+dfm <- dfm %>%
+  filter(no_interview == 0) %>%
+  group_by(ptexp, black, old_test) %>%
+  mutate(weighted_employment = weighted.mean(x = emp, w = weight, na.rm = TRUE))
+
+dfm <- dfm %>% mutate(old_test = ifelse(age_test>18, 1, 0), 
+                                  category = case_when(
+                                black == 1 & age_test > 18 ~ "Black 18+",
+                                black == 1 & age_test <= 18 ~ "Black 18-",
+                                black == 0 & age_test > 18 ~ "White 18+",
+                                black == 0 & age_test <= 18 ~ "White 18-"
+                              ))
+
+Plot_Overall_employment=ggplot(dfm, aes(ptexp, weighted_employment, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("Overall") +
+  xlab("Potential Experience") +
+   ylim(0.5,1)+
+  ylab("Employment Rates")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_Overall_attrition=ggplot(dfm, aes(ptexp, share_no_interview, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("Overall") +
+  xlab("Potential Experience") +
+  ylim(0,1)+
+  ylab("Share No Interview")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_Overall=ggplot(subset(dfm), aes(ptexp, weighted_wage, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("Overall") +
+  xlab("Potential Experience") +
+  ylab("Log Wage")+ 
+  labs(color="Black")+
+  ylim(1.5,3.25)+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+# By study category
+
+#dfm=NLSY79%>%subset(sample_pref==1&ptexp>=1)%>%
+  #group_by(as.factor(educ_cat),ptexp, black)%>%
+  #mutate(weighted_income = weighted.mean(logwage, w=weight, na.rm = T))
+
+
+# Create study categories with names
+HS <- subset(NLSY79, educ_30 == 12 & educ == 12 & (hgc == 12 | is.na(hgc))&sample_pref==1&ptexp>=1)
+
+nrow(subset(HS, race==3&ptexp==1)) # 
+nrow(subset(HS, race==2&ptexp==1))
+
+nrow(subset(HS, race==3&ptexp==40)) # 
+nrow(subset(HS, race==2&ptexp==40))
+
+
+CD <- subset(NLSY79, educ_30 == 16 & educ == 16 & (hgc == 16 | is.na(hgc))&sample_pref==1&ptexp>=1)
+
+nrow(subset(CD, race==3&ptexp==1)) # 845 high school graduates
+nrow(subset(CD, race==2&ptexp==1))
+
+nrow(subset(CD, race==3&ptexp==40)) # 845 high school graduates
+nrow(subset(CD, race==2&ptexp==40))
+
+
+HS=HS%>%
+  group_by(ptexp, black, old_test)%>%
+  mutate(weighted_income = weighted.mean(logwage, w=weight, na.rm = T),
+         share_no_interview = mean(no_interview, na.rm = TRUE),
+         weighted_employment = weighted.mean(x = emp, w = weight, na.rm = TRUE)) # %>%
+
+HS = HS %>%
+  distinct(id, afqt_std, age_test, .keep_all = TRUE) %>%  # Keep unique combinations
+  group_by(black, age_test) %>%
+  mutate(weighted_afqt = weighted.mean(afqt_std, w = weight, na.rm = TRUE))
+
+
+CD=CD%>%
+  group_by(ptexp, black, old_test)%>%
+  mutate(weighted_income = weighted.mean(logwage, w=weight, na.rm = T),
+         share_no_interview = mean(no_interview, na.rm = TRUE),
+         weighted_employment = weighted.mean(x = emp, w = weight, na.rm = TRUE))
+
+
+# High School 
+
+your_data <- HS %>%
+  dplyr::select(year, race, logwage, weighted_income,weighted_employment, everything())
+your_data <- your_data %>%
+  mutate_all(~ ifelse(is.nan(.), NA, .))
+your_data <- your_data %>% mutate(old_test = ifelse(age_test>18, 1, 0), 
+                                  category = case_when(
+                                black == 1 & age_test > 18 ~ "Black 18+",
+                                black == 1 & age_test <= 18 ~ "Black 18-",
+                                black == 0 & age_test > 18 ~ "White 18+",
+                                black == 0 & age_test <= 18 ~ "White 18-"
+                              ))
+
+
+
+Plot_HS_employment=ggplot(data = your_data, aes(ptexp, weighted_employment, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("High School") +
+  xlab("Potential Experience") +
+  ylim(0.5,1)+
+  ylab("Employment")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_HS=ggplot(your_data, aes(ptexp, weighted_income, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("High School") +
+  xlab("Potential Experience") +
+  ylim(1.5,3.25)+
+  ylab("Log Wage")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_HS_attrition=ggplot(your_data, aes(ptexp, share_no_interview, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("High School") +
+  xlab("Potential Experience") +
+  ylim(0,1)+
+  ylab("Share No Interview")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_HS_afqt=ggplot(data = your_data, aes(age_test, weighted_afqt, colour=as.factor(black))) +
+  geom_line()+
+  ggtitle("High School") +
+  xlab("Age Test") +
+  ylab("Standardized AFQT")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "red"))+
+  theme(legend.position = "bottom")
+
+# Calculate the gap in afqt between black and white
+gap_data = your_data %>%
+  group_by(age_test, black) %>%
+  summarise(weighted_afqt = mean(weighted_afqt, na.rm = TRUE)) %>%
+  pivot_wider(names_from = black, values_from = weighted_afqt, names_prefix = "black_") %>%
+  mutate(afqt_gap = black_0 - black_1)  # black_1 is for black, black_0 for white
+
+# Plot the gap
+Plot_HS_afqt_gap = ggplot(data = gap_data, aes(age_test, afqt_gap)) +
+  geom_line(color = "purple", size = 1) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "grey") +
+  ggtitle("Black-White AFQT Gap by Age Test") +
+  xlab("Age Test") +
+  ylab("AFQT Gap (White - Black)") +
+  theme_minimal()
+
+
+#College degree
+
+your_data <- CD %>%
+  dplyr::select(year, race, logwage, weighted_income,weighted_employment, everything())
+your_data <- your_data %>%
+  mutate_all(~ ifelse(is.nan(.), NA, .))
+your_data <- your_data %>% mutate(old_test = ifelse(age_test>18, 1, 0), 
+                                  category = case_when(
+                                black == 1 & age_test > 18 ~ "Black 18+",
+                                black == 1 & age_test <= 18 ~ "Black 18-",
+                                black == 0 & age_test > 18 ~ "White 18+",
+                                black == 0 & age_test <= 18 ~ "White 18-"
+                              ))
+
+Plot_CD_employment=ggplot(your_data, aes(ptexp, weighted_employment, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("College") +
+  xlab("Potential Experience") +
+  ylim(0.5,1)+
+  ylab("Employment")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_CD=ggplot(your_data, aes(ptexp, weighted_income, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("College") +
+  xlab("Potential Experience") +
+  ylim(1.5,3.25)+
+  ylab("Log Wage")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+Plot_CD_attrition=ggplot(your_data, aes(ptexp, share_no_interview, colour=as.factor(category))) +
+  geom_line()+
+  ggtitle("College") +
+  xlab("Potential Experience") +
+  ylim(0,1)+
+  ylab("Share No Interview")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "lightblue", "red", "pink"))+
+  theme(legend.position = "bottom")
+
+pdf(paste0(figures, "trends_white_black_selected.pdf"))
+grid.arrange(Plot_Overall,Plot_HS,Plot_CD, ncol = 3) 
+dev.off()
+
+pdf(paste0(figures,"Attrition.pdf"))
+grid.arrange(Plot_Overall_attrition,Plot_HS_attrition,Plot_CD_attrition, ncol = 3) 
+dev.off()
+
+pdf(paste0(figures,"Employment.pdf"))
+grid.arrange(Plot_Overall_employment,Plot_HS_employment,Plot_CD_employment, ncol = 3) 
+dev.off()
+
+
+### Show that your results are similar to Neal's, but argue that this is not your preferred specification (some are working while studying)
+
+subsample0=NLSY79%>%subset(age==30&female==0&sample_pref==1)
+
+# Filter data for 1994 and race == 3
+subset_30_white <- subsample0 %>% filter(race == 3)
+
+# Filter data for 1996 and race == 2
+subset_30_black <- subsample0 %>% filter(race == 2)
+
+education_30=rbind(subset_30_white, subset_30_black) %>% count(black, educ_30) %>%
+  group_by(black) %>%
+  mutate(prop = prop.table(n) * 100) %>%
+  ggplot() + aes(educ_30, prop, fill = factor(black), 
+                 label = "") +
+  labs(title = "Education by age 30", x = "Education Level", y = "Share by race") + 
+  geom_col(position = "dodge") + 
+  geom_text(position = position_dodge(width = 2), vjust = -0.5, hjust = 0.5)+
+  #Specify colours
+  scale_fill_manual(values=c("blue", "red"))+
+  theme_minimal()+
+  # Specify legend title
+  guides(fill = guide_legend(title = "Black"))+
+  theme(legend.position = "bottom")
+
+pdf(paste0(figures,"Education_30.pdf"))
+grid.arrange(education_30) 
+dev.off()
+
+# Create a subsample of those with 16 and 12 years of education
+
+
+HS_CD=rbind(HS, CD)
+
+result <- HS_CD %>%
+  group_by(age, educ, black) %>%
+  summarise(mean_wage = mean(weighted_income)) %>%
+  spread(key = educ, value = mean_wage) %>%
+  mutate(difference = `16` - `12`)
+
+result=dplyr::select(result, c("black", "difference","age"))
+
+College_premium=ggplot(result, aes(x = age, y = difference, color = as.factor(black))) +
+  geom_line() +
+  labs(title = "College Premium",
+       x = "Age",
+       y = "Mean Log Wage",
+       color = "Black",
+       linetype = "Education") +
+  theme_minimal()+ 
+  ylim(-0.2,1)+
+  scale_color_manual(values=c("blue", "red"))+
+  theme(legend.position = "bottom")
+
+pdf("Education.pdf")
+grid.arrange(education_1994,College_premium, ncol = 2) 
+dev.off()
+
+grid.arrange(Plot_Overall,Plot_HS,Plot_CD, ncol = 3) 
+grid.arrange(education_1994,College_premium, ncol = 2) 
+
+```
+
+```{r To Erase Later}
+
+ggplot(subset(dfm, age==30), aes(afqt_std, wage, colour=as.factor(black))) +
+  geom_line()+
+  ggtitle("High School") +
+  xlab("AFQT - Standardized") +
+  ylab("Wage")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "red"))+
+  theme(legend.position = "bottom")
+
+ggplot(subset(NLSY79, age==45& educ==12), aes(afqt_std, emp, colour=as.factor(black))) +
+  geom_point() + # Changed to points for better visualization
+  geom_smooth(method = "loess", se = FALSE) + # Adding loess line
+  ggtitle("High School") +
+  xlab("AFQT - Standardized") +
+  ylab("Log Wage")+ 
+  labs(color="Black")+
+  theme_minimal()+ 
+  scale_color_manual(values=c("blue", "red"))+
+  theme(legend.position = "bottom")
+
+```
+
+```{r Skills distribution}
+
+# Create study categories with names - Don't impose the condition of being employed. 
+HS <- subset(NLSY79, educ_30 == 12 & educ == 12 & (hgc == 12 | is.na(hgc))&sample_pref==1)
+CD <- subset(NLSY79, educ_30 == 16 & educ == 16 & (hgc == 16 | is.na(hgc))&age_test<=18&sample_pref==1)
+
+DescTools::Mode(HS$age)
+nrow(subset(HS, race==3&age==30)) # 845 high school graduates
+nrow(subset(HS, race==2&age==30)) # 561 high school graduates
+
+# Why sample size optimal at 30? because this is the latest age at which people can enter the sample as one of the conditions is educ_30==12. Moreover, some individuals are older than others, so by the time they are 31, they might not have an interview that year. One can actually see how the sample behaves properly once one focuses only on pairs of ages that have a 2 years interval.
+#subset(HS, race==3&age==42)
+#subset(HS, race==3&age==44)
+
+plot_wages_ptexp1 <- ggplot(data = subset(HS, sample_pref==1&ptexp==1), aes(x = logwage)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.15) +
+  labs(title = "Wages")+
+  xlab("log - wages") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 1.5))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+plot_wages_ptexp15 <- ggplot(data = subset(HS, sample_pref==1&ptexp==15), aes(x = logwage)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.15) +
+  labs(title = "Wages")+
+  xlab("log - wages") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 1.5))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+plot_wages_ptexp25 <- ggplot(data = subset(HS, sample_pref==1&ptexp==25), aes(x = logwage)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.15) +
+  labs(title = "Wages")+
+  xlab("log - wages") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 1.5))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+
+
+plot_cognitive_1994 <- ggplot(data = subset(HS, sample_pref==1&age==30), aes(x = afqt_std)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.25) +
+  labs(title = "Cognitive Skills")+
+  xlab("AFQT") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 1))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+plot_non_cognitive_1994 <- ggplot(data = subset(HS, sample_pref==1&age==30), aes(x = noncog_std)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.25) +
+  labs(title = "Non-Cognitive Skills")+
+  xlab("Rosenberg and Rotter") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 0.6))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+
+plot_social_1994 <- ggplot(data = subset(HS, sample_pref==1&age==30), aes(x = soc_nlsy2_std)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.25)+
+  labs(title = "Social Skills")+
+  xlab("Self-reported sociability")+
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 0.6))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+
+
+pdf("Skills_HS.pdf")
+grid.arrange(plot_cognitive_1994,plot_non_cognitive_1994, plot_social_1994, ncol = 3) 
+dev.off()
+
+DescTools::Mode(CD$age)
+nrow(subset(CD, race==3&age==30)) # 164 college graduates
+nrow(subset(CD, race==2&age==30)) # 44 college graduates
+
+plot_cognitive_1994_cd <- ggplot(data = subset(CD, sample_pref==1&age==30), aes(x = afqt_std)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.25) +
+  labs(title = "Cognitive Skills")+
+  xlab("AFQT") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 1))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+plot_non_cognitive_1994_cd <- ggplot(data = subset(CD, sample_pref==1&age==30), aes(x = noncog_std)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.25) +
+  labs(title = "Non-Cognitive Skills")+
+  xlab("Rosenberg and Rotter") +
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 0.6))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+plot_social_1994_cd <- ggplot(data = subset(CD, sample_pref==1&age==30), aes(x = soc_nlsy2_std)) +
+  geom_density(aes(fill=factor(black)), alpha = 0.5, bw=0.25)+
+  labs(title = "Social Skills")+
+  xlab("Self-reported sociability")+
+  theme_minimal()+
+  coord_cartesian(xlim = c(-3, 3))+
+  coord_cartesian(ylim = c(0, 0.6))+ scale_fill_manual( values = c("blue","red"), name = "Black")
+
+column_names <- c("High School", "College")
+
+pdf("Skills.pdf")
+grid.arrange(arrangeGrob(plot_cognitive_1994,plot_non_cognitive_1994, plot_social_1994, top=textGrob("High-School", gp = gpar(fontsize = 14, fontface = "bold"))),arrangeGrob(plot_cognitive_1994_cd,plot_non_cognitive_1994_cd, plot_social_1994_cd, top=textGrob("College", gp = gpar(fontsize = 14, fontface = "bold"))), ncol=2)
+dev.off()
+
+
+grid.arrange(plot_cognitive_1994_cd,plot_non_cognitive_1994_cd, plot_social_1994_cd, ncol = 3) 
+
+# Assuming you have already created the plots: plot_cognitive_1994, plot_cognitive_1994_cd, plot_non_cognitive_1994, plot_non_cognitive_1994_cd, plot_social_1994, and plot_social_1994_cd
+
+# Create the column names
+column_names <- c("High School", "College")
+
+# Arrange the plots using arrangeGrob and add column names
+grid.arrange(
+  arrangeGrob(
+    plot_cognitive_1994, plot_cognitive_1994_cd, 
+    plot_non_cognitive_1994, plot_non_cognitive_1994_cd,
+    plot_social_1994, plot_social_1994_cd,
+    ncol = 2
+  ),
+  top = textGrob(c(column_names[1],column_names[2]), gp = gpar(fontsize = 14, fontface = "bold")),
+  ncol = 1
+)
+
+```
+
+```{r Sample Selection - Neal}
+HS=subset(HS, HS$emp==1|HS$emp==0)
+sum(is.na(HS$wage))
+subset_emp_Missing=subset(HS,is.na(HS$wage)==T&HS$emp==1)
+subset_unemp_Missing=subset(HS,is.na(HS$wage)==T&HS$emp==0)
+
+lm(logwage~afqt_std, data=HS)
+summary(lm(logwage~afqt_std+ptexp+as.factor(year), data=HS))
+
+### NEED A VARIABLE "COMPLETE"!!! ###
+
+NLSY_Neal=subset(NLSY79, neal_lite==1)
+lm1_Neal=lm(logwage~as.factor(black)+age, data=subset(NLSY79, year>=90&year<=91&age<=29&age>=26&neal_lite==1), weights=weight)
+summary(lm1_Neal) # Very similar results
+
+lm2_Neal=lm(logwage~as.factor(black)+age+afqt_std+I(afqt_std^2), data=subset(NLSY79, year>=90&year<=91&age<=29&age>=26&neal_lite==1), weights=weight)
+summary(lm2_Neal) # results are fairly similar between me and Neal
+
+### Focus on preferred specification: ptexp>0, educ>=8, no age constraint and ptexp instead of age. Show that it is absurd to not split into educational categories
+
+### FOR ME ###
+lm1_Neal=lm(logwage~as.factor(black)+ptexp, data=subset(NLSY79, year>=90&year<=91&sample_pref==1&ptexp>0&educ>=8), weights=weight)
+summary(lm1_Neal) # Still similar results
+
+lm2_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std+I(afqt_std^2), data=subset(NLSY79, year>=90&year<=91&sample_pref==1&ptexp>0&educ>=8), weights=weight)
+summary(lm2_Neal)
+
+lm3_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std+I(afqt_std^2)+as.factor(educ), data=subset(NLSY79, year>=90&year<=91&sample_pref==1&ptexp>0&educ>=8), weights=weight)
+summary(lm3_Neal) 
+
+lm4_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std+I(afqt_std^2)+educ+noncog_std+soc_nlsy2_std, data=subset(NLSY79, year>=90&year<=91&sample_pref==1&ptexp>0&educ>=8), weights=weight)
+summary(lm4_Neal)
+
+se_neal_4 <- vcovCL(lm4_Neal, type = "HC0", cluster = ~id)
+coeftest(lm4_Neal, vcov. = se_neal_4) 
+
+### MAIN - HIGH SCHOOL ###
+
+lm1_Neal=lm(logwage~as.factor(black)+ptexp, data=subset(HS, year>=90&year<=91&ptexp>0&sample_pref==1), weights=weight)
+summary(lm1_Neal) # gap of 24.5%, wage increases by 2.5% with experience
+
+lm2_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std, data=subset(HS, year>=90&year<=91&ptexp>0&sample_pref==1), weights=weight)
+summary(lm2_Neal) # Gap drops to 12% (twice as small), wage grows by 2.3% per year, and individuals with one standard deviation higher AFQT earn wages 11.5% higher. 
+
+lm4_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std+noncog_std+soc_nlsy2_std, data=subset(HS, year>=90&year<=91&ptexp>0&sample_pref==1), weights=weight)
+summary(lm4_Neal) 
+
+# College
+
+lm1_Neal=lm(logwage~as.factor(black)+ptexp, data=subset(CD, year>=90&year<=91&ptexp>0&sample_pref==1), weights=weight)
+summary(lm1_Neal) # Gap of only 16%
+
+lm2_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std, data=subset(CD, year>=90&year<=91&ptexp>0&sample_pref==1), weights=weight)
+summary(lm2_Neal) # Coefficient on AFQT is slightly higher than for high school graduates, but not statistically significantly higher. 
+
+lm4_Neal=lm(logwage~as.factor(black)+ptexp+afqt_std+noncog_std+soc_nlsy2_std, data=subset(CD, year>=90&year<=91&ptexp>0&sample_pref==1), weights=weight)
+summary(lm4_Neal) # Social and non-cognitive skills do not seem to be playing a role. 
+
+se_neal_4 <- vcovCL(lm4_Neal, type = "HC0", cluster = ~id)
+coeftest(lm4_Neal, vcov. = se_neal_4) 
+
+```
+
+```{r Life-cycle analysis - High School}
+
+# Wage divergence over the life-cycle
+
+lm1_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*ptexp+I(ptexp^2)+as.factor(black)*I(ptexp^2)+as.factor(year), data=subset(HS, ptexp>0&sample_pref==1&ptexp<=40),weights=weight)
+summary(lm1_lifecycle)
+
+se_ls1 <- vcovCL(lm1_lifecycle, type = "HC0", cluster = ~id)
+coeftest(lm1_lifecycle, vcov. = se_ls1) 
+
+# What share of the divergence can be explained by differences in AFQT?
+
+lm2_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*ptexp+ptexp*afqt_std+ptexp*I(afqt_std^2)+I(ptexp^2)*afqt_std+as.factor(black)*I(ptexp^2)+as.factor(year), data=subset(HS, ptexp>0&sample_pref==1&ptexp<=40),weights=weight)
+summary(lm2_lifecycle)
+
+se_ls2 <- vcovCL(lm2_lifecycle, type = "HC0", cluster = ~id)
+coeftest(lm2_lifecycle, vcov. = se_ls2) 
+
+# Can non-cognitive skills and social skills add some explanation?
+lm3_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*ptexp+ptexp*afqt_std+ptexp*I(afqt_std^2)+I(ptexp^2)*afqt_std+as.factor(black)*I(ptexp^2)+ptexp*soc_nlsy2_std+as.factor(year)+noncog_std, data=subset(HS, ptexp>0&sample_pref==1&age_test<=18),weights=weight)
+summary(lm3_lifecycle)
+
+se_ls3 <- vcovCL(lm3_lifecycle, type = "HC0", cluster = ~id)
+coeftest(lm3_lifecycle, vcov. = se_ls3)
+
+lm3_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*as.factor(ptexp)+as.factor(ptexp)*afqt_std+as.factor(ptexp)*I(afqt_std^2)+soc_nlsy2_std+as.factor(year)+noncog_std, data=subset(HS, ptexp>0&sample_pref==1&age_test<=18),weights=weight)
+summary(lm3_lifecycle)
+```
+
+
+```{r Life-cycle analysis - College}
+
+# Wage divergence over the life-cycle
+
+lm1_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*ptexp+I(ptexp^2)+as.factor(year), data=subset(CD, ptexp>0&sample_pref==1),weights=weight)
+summary(lm1_lifecycle)
+
+se_ls1 <- vcovCL(lm0_lifecycle, type = "HC0", cluster = ~id)
+coeftest(lm1_lifecycle, vcov. = se_ls1) 
+
+# What share of the divergence can be explained by differences in AFQT?
+
+lm2_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*ptexp+ptexp*afqt_std+as.factor(year), data=subset(CD, ptexp>0&sample_pref==1),weights=weight)
+summary(lm2_lifecycle)
+
+se_ls2 <- vcovCL(lm2_lifecycle, type = "HC0", cluster = ~id)
+coeftest(lm2_lifecycle, vcov. = se_ls2) 
+
+lm2_lifecycle_prime=lm(logwage~as.factor(black)+as.factor(black)*ptexp+ptexp*afqt_std+as.factor(year)+URBAN+as.factor(REGION), data=subset(CD, ptexp>0&sample_pref==1&age<42),weights=weight)
+summary(lm2_lifecycle)
+
+se_ls2 <- vcovCL(lm2_lifecycle_prime, type = "HC0", cluster = ~id)
+coeftest(lm2_lifecycle_prime, vcov. = se_ls2) 
+
+# Can non-cognitive skills and social skills add some explanation?
+lm3_lifecycle=lm(logwage~as.factor(black)+as.factor(black)*ptexp+ptexp*afqt_std+ptexp*I(afqt_std^2)+I(ptexp^2)*afqt_std+as.factor(black)*I(ptexp^2)+noncog_std+soc_nlsy2_std+as.factor(year), data=subset(CD, ptexp>0&sample_pref==1),weights=weight)
+summary(lm3_lifecycle)
+
+se_ls3 <- vcovCL(lm3_lifecycle, type = "HC0", cluster = ~id)
+coeftest(lm3_lifecycle, vcov. = se_ls3) 
+```
+
+```{r Sample Selection}
+
+#### Create the Arcidiacono subsample to run analysis on it and show that the same results are reached
+
+# Calculate minhgc for each id where hgc < 17
+NLSY79 <- NLSY79 %>%
+  group_by(id) %>%
+  mutate(minhgc = ifelse(hgc < 17, min(hgc), NA))
+
+# Update exper by subtracting minhgc
+NLSY79$exper=NLSY79$year-NLSY79$gy
+
+NLSY79 <- NLSY79 %>%
+  mutate(problematic = ifelse(!is.na(minhgc), exper - minhgc, exper))
+
+NLSY79$ptexp=NLSY79$year-NLSY79$gy
+
+
+
+NLSY79 <- NLSY79 %>%
+  mutate(arci_lite = ifelse(ptexp>0&age<=47&ESR<=2&ESR>=1&cls>=1&cls<=2&gy<=year&URBAN>=0& !is.na(hgc)& !is.na(afqt_std), 1, 0))
+NLSY79 <- NLSY79 %>% select(id, year, race, black, age, educ, wage,logwage,afqt_std, ptexp,everything())
+
+# 1: exper=year-gy -> 
+
+
+HS=subset(NLSY79, educ==12)
+CD=subset(NLSY79, educ==16)
+
+CD_Arci=subset(NLSY79, hgc==16&arci_lite==1)
+CD_Arci$afqt_ptexp=CD_Arci$afqt_std*CD_Arci$ptexp
+
+summary(lm(logwage~black+afqt_std+as.factor(year)+afqt_std*ptexp+I(afqt_std^2)*ptexp+black*ptexp+URBAN+as.factor(REGION), data=subset(CD_Arci, ptexp<13)))
+
+Arci=subset(NLSY79,arci_lite==1)
+
+mainsample=mainsample%>% select(id, year, black, age, educ, AHRP,logwage,afqt, ptexp,everything())
+mainsample <- mainsample %>%
+  arrange(id, year)
+summary(lm(logwage~as.factor(black)+afqt, data=subset(mainsample,educ==16)))
+
+
+
+
+
+
+```
+
+
+```{r Regressions cars}
+lm1=lm(logwage~black, data=subsample)
+summary(lm1)
+```
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
