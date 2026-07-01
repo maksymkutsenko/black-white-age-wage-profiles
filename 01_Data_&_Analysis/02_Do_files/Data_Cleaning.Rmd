@@ -16,7 +16,7 @@ library(grid)
 library(lmtest)
 
 
-rm(list=ls())
+# rm(list=ls())
 # Set working directory
 raw_data <- "/Users/maksym/Documents/GitHub/black-white-age-wage-profiles/01_Data_&_Analysis/01_Data/01_raw/"
 clean_data <- "/Users/maksym/Documents/GitHub/black-white-age-wage-profiles/01_Data_&_Analysis/01_Data/02_clean/"
